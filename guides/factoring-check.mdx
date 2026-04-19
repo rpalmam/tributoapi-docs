@@ -1,0 +1,141 @@
+---
+title: Verificar cesión de facturas
+description: Cómo consultar si una factura fue cedida a factoring antes de pagar.
+---
+
+## El problema
+
+Cuando un proveedor cede una factura a una empresa de factoring (Ley 19.983), el deudor debe pagar **al cesionario**, no al emisor original. Si pagas al emisor después de la cesión, puedes quedar obligado a pagar dos veces.
+
+TributoAPI consulta el **Registro de Transferencias y Cesiones (RTC)** del SII para que sepas a quién pagar antes de procesar cualquier factura.
+
+---
+
+## Flujo completo
+
+### 1. Conectar sesión SII (una vez cada 2 horas)
+
+```python
+import requests
+
+API_KEY = "YOUR_API_KEY"
+BASE_URL = "https://api.tributoapi.com"
+
+# Conectar sesión SII
+r = requests.post(
+    f"{BASE_URL}/v1/auth/cl/connect",
+    headers={"X-API-Key": API_KEY},
+    json={"rut": "76.354.771-K", "clave": "tu_clave_sii"}
+)
+r.raise_for_status()
+print(f"Sesión activa hasta: {r.json()['expires_at']}")
+```
+
+<Info>Guarda `expires_at` para saber cuándo renovar la sesión. No es necesario reconectar en cada consulta — la sesión dura 2 horas.</Info>
+
+### 2. Verificar una factura
+
+```python
+def verificar_factura(folio: int, rut_emisor: str) -> dict:
+    r = requests.post(
+        f"{BASE_URL}/v1/cl/factoring",
+        headers={"X-API-Key": API_KEY},
+        json={"folio": folio, "rut_emisor": rut_emisor, "tipo_dte": 33}
+    )
+
+    if r.status_code == 401:
+        # Sesión expirada — reconectar y reintentar
+        reconectar()
+        return verificar_factura(folio, rut_emisor)
+
+    r.raise_for_status()
+    return r.json()
+
+resultado = verificar_factura(12345, "76.354.771-K")
+
+if resultado["cedida"]:
+    print(f"CEDIDA a {resultado['cesionario']} ({resultado['rut_cesionario']})")
+    print(f"Fecha: {resultado['fecha_cesion']} — Monto: ${resultado['monto']:,}")
+    print("⚠️  Pagar al cesionario, NO al emisor original.")
+else:
+    print("No cedida — puedes pagar directamente al emisor.")
+```
+
+---
+
+## Manejo de errores
+
+| Error | Causa | Acción |
+|-------|-------|--------|
+| `401 No hay sesión activa` | Nunca llamaste a `/auth/cl/connect` | Conectar sesión |
+| `401 Sesión SII expirada` | Pasaron más de 2 horas | Reconectar sesión |
+| `422 RUT emisor inválido` | Formato de RUT incorrecto | Usar formato `76.354.771-K` o `76354771-K` |
+| `422 Folio inválido` | Folio ≤ 0 | Verificar el número de folio |
+| `503 SII no disponible` | Falla temporal del SII | Reintentar con backoff |
+
+---
+
+## Ejemplo con manejo completo
+
+```python
+import requests
+import time
+from datetime import datetime, timezone
+
+API_KEY = "YOUR_API_KEY"
+BASE_URL = "https://api.tributoapi.com"
+session_expires_at = None
+
+
+def conectar_sii(rut: str, clave: str):
+    global session_expires_at
+    r = requests.post(
+        f"{BASE_URL}/v1/auth/cl/connect",
+        headers={"X-API-Key": API_KEY},
+        json={"rut": rut, "clave": clave}
+    )
+    r.raise_for_status()
+    session_expires_at = datetime.fromisoformat(r.json()["expires_at"])
+
+
+def sesion_vigente() -> bool:
+    if not session_expires_at:
+        return False
+    return datetime.now(timezone.utc) < session_expires_at
+
+
+def verificar_factura(folio: int, rut_emisor: str, reintentos: int = 3) -> dict:
+    for intento in range(reintentos):
+        r = requests.post(
+            f"{BASE_URL}/v1/cl/factoring",
+            headers={"X-API-Key": API_KEY},
+            json={"folio": folio, "rut_emisor": rut_emisor, "tipo_dte": 33}
+        )
+        if r.status_code == 401:
+            raise RuntimeError("Sesión inactiva — llama a conectar_sii() primero.")
+        if r.status_code == 503 and intento < reintentos - 1:
+            time.sleep(2 ** intento)  # backoff exponencial
+            continue
+        r.raise_for_status()
+        return r.json()
+    raise RuntimeError("SII no disponible después de varios intentos.")
+```
+
+---
+
+## Preguntas frecuentes
+
+<AccordionGroup>
+  <Accordion title="¿TributoAPI almacena mi clave tributaria?">
+    No. La clave se usa únicamente para obtener las cookies de sesión del SII y se descarta inmediatamente. Solo se almacenan las cookies, cifradas en Redis, con TTL de 2 horas. Ver [modelo zero-knowledge](/authentication).
+  </Accordion>
+  <Accordion title="¿Qué pasa si la sesión expira mientras proceso facturas?">
+    El endpoint devuelve `401` con el mensaje `"Sesión SII expirada"`. Simplemente llama a `POST /v1/auth/cl/connect` y reintenta la consulta.
+  </Accordion>
+  <Accordion title="¿Cuánto tiempo se cachean los resultados?">
+    6 horas. Las cesiones de facturas no cambian frecuentemente — si necesitas el dato en tiempo real, contacta a soporte para deshabilitar el cache en tu cuenta.
+  </Accordion>
+  <Accordion title="¿Qué es el tipo_dte 33?">
+    33 es el código de factura electrónica afecta (la más común). Otros tipos: 34 (factura no afecta), 61 (nota de crédito). Si no estás seguro, usa 33.
+  </Accordion>
+</AccordionGroup>

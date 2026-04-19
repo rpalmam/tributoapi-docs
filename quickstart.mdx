@@ -1,0 +1,198 @@
+---
+title: Quickstart
+description: Haz tu primera consulta en menos de 5 minutos.
+---
+
+## 1. Obtén tu API key
+
+Elige un plan en [tributoapi.com](https://tributoapi.com). Tu API key llega por email inmediatamente después del pago.
+
+```
+sk_a1b2c3d4e5f6...
+```
+
+Usa tu key en el header `X-API-Key` en todas las requests.
+
+---
+
+## 2. Consulta un RUT (sin auth)
+
+`GET /v1/cl/rut/{rut}` es público — no requiere sesión SII. Ideal para verificar datos básicos de un proveedor.
+
+<CodeGroup>
+
+```bash cURL
+curl https://api.tributoapi.com/v1/cl/rut/76.354.771-K \
+  -H "X-API-Key: YOUR_API_KEY"
+```
+
+```python Python
+import requests
+
+r = requests.get(
+    "https://api.tributoapi.com/v1/cl/rut/76.354.771-K",
+    headers={"X-API-Key": "YOUR_API_KEY"}
+)
+print(r.json())
+```
+
+```javascript Node.js
+const r = await fetch("https://api.tributoapi.com/v1/cl/rut/76.354.771-K", {
+  headers: { "X-API-Key": "YOUR_API_KEY" }
+});
+console.log(await r.json());
+```
+
+</CodeGroup>
+
+```json Respuesta
+{
+  "rut": "76.354.771-K",
+  "razon_social": "Empresa Ejemplo SpA",
+  "actividades": [
+    {
+      "codigo": "6201",
+      "descripcion": "Actividades de programación informática",
+      "afecta_iva": true,
+      "categoria": "Primera Categoría"
+    }
+  ],
+  "inicio_actividades": "2018-05-10",
+  "situacion_tributaria": "VIGENTE",
+  "domicilio": "Av. Providencia 1234, Santiago",
+  "source": "sii_stc"
+}
+```
+
+---
+
+## 3. Conecta una sesión SII (para módulos que lo requieren)
+
+Para consultar el Registro de Cesiones (factoring), necesitas una sesión SII activa. Envías RUT + clave **una sola vez** — la clave se descarta inmediatamente, nunca se persiste.
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST https://api.tributoapi.com/v1/auth/cl/connect \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"rut": "76.354.771-K", "clave": "tu_clave_sii"}'
+```
+
+```python Python
+r = requests.post(
+    "https://api.tributoapi.com/v1/auth/cl/connect",
+    headers={"X-API-Key": "YOUR_API_KEY"},
+    json={"rut": "76.354.771-K", "clave": "tu_clave_sii"}
+)
+print(r.json())
+```
+
+```javascript Node.js
+const r = await fetch("https://api.tributoapi.com/v1/auth/cl/connect", {
+  method: "POST",
+  headers: {
+    "X-API-Key": "YOUR_API_KEY",
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({ rut: "76.354.771-K", clave: "tu_clave_sii" })
+});
+console.log(await r.json());
+```
+
+</CodeGroup>
+
+```json Respuesta
+{
+  "connected": true,
+  "rut": "76.354.771-K",
+  "expires_at": "2026-04-18T14:00:00+00:00"
+}
+```
+
+<Info>La sesión dura **2 horas** — el mismo TTL que una sesión SII normal. Cuando expire, vuelve a llamar a este endpoint.</Info>
+
+---
+
+## 4. Consulta el Registro de Cesiones
+
+Con la sesión activa, puedes verificar si una factura fue cedida a factoring.
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST https://api.tributoapi.com/v1/cl/factoring \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"folio": 12345, "rut_emisor": "76.354.771-K", "tipo_dte": 33}'
+```
+
+```python Python
+r = requests.post(
+    "https://api.tributoapi.com/v1/cl/factoring",
+    headers={"X-API-Key": "YOUR_API_KEY"},
+    json={"folio": 12345, "rut_emisor": "76.354.771-K", "tipo_dte": 33}
+)
+print(r.json())
+```
+
+```javascript Node.js
+const r = await fetch("https://api.tributoapi.com/v1/cl/factoring", {
+  method: "POST",
+  headers: {
+    "X-API-Key": "YOUR_API_KEY",
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({ folio: 12345, rut_emisor: "76.354.771-K", tipo_dte: 33 })
+});
+console.log(await r.json());
+```
+
+</CodeGroup>
+
+<CodeGroup>
+
+```json Factura cedida
+{
+  "folio": 12345,
+  "rut_emisor": "76.354.771-K",
+  "tipo_dte": 33,
+  "cedida": true,
+  "cesionario": "Factoring Financiero S.A.",
+  "rut_cesionario": "76.111.222-3",
+  "fecha_cesion": "2026-03-15",
+  "monto": 1190000,
+  "source": "sii_rtc"
+}
+```
+
+```json Factura no cedida
+{
+  "folio": 12345,
+  "rut_emisor": "76.354.771-K",
+  "tipo_dte": 33,
+  "cedida": false,
+  "cesionario": null,
+  "rut_cesionario": null,
+  "fecha_cesion": null,
+  "monto": null,
+  "source": "sii_rtc"
+}
+```
+
+</CodeGroup>
+
+<Check>Si `cedida: true`, **no pagues directamente al emisor** — el pago debe hacerse al cesionario (empresa de factoring).</Check>
+
+---
+
+## Próximos pasos
+
+<CardGroup cols={2}>
+  <Card title="Autenticación" icon="key" href="/authentication">
+    Detalles del modelo zero-knowledge y manejo de sesiones.
+  </Card>
+  <Card title="Guía: Verificar factoring" icon="file-invoice" href="/guides/factoring-check">
+    Flujo completo con manejo de errores y renovación de sesión.
+  </Card>
+</CardGroup>

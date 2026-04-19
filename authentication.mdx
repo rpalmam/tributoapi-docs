@@ -1,0 +1,91 @@
+---
+title: Autenticación
+description: API key de TributoAPI y modelo zero-knowledge para sesiones SII.
+---
+
+## API Key
+
+Todas las requests requieren el header `X-API-Key`:
+
+```bash
+curl https://api.tributoapi.com/v1/cl/rut/76.354.771-K \
+  -H "X-API-Key: YOUR_API_KEY"
+```
+
+Si la key es inválida o está inactiva, recibes `401 Unauthorized`.
+
+---
+
+## Sesión SII — modelo zero-knowledge
+
+Algunos módulos (Factoring Check, Tax Health, RCV) requieren una sesión SII activa además de la API key. El flujo está diseñado para que **tu clave tributaria nunca quede almacenada en ningún sistema de TributoAPI**.
+
+### Cómo funciona
+
+<Steps>
+  <Step title="Envías RUT + clave una sola vez">
+    `POST /v1/auth/cl/connect` recibe tu RUT y clave tributaria.
+  </Step>
+  <Step title="TributoAPI autentica contra el SII">
+    Se hace login en `zeusr.sii.cl` con tus credenciales — el mismo flujo que el portal web.
+  </Step>
+  <Step title="Se capturan las cookies de sesión">
+    El SII devuelve cookies de sesión válidas por ~2 horas.
+  </Step>
+  <Step title="La clave se descarta inmediatamente">
+    La clave tributaria se elimina de memoria. Solo las cookies de sesión se almacenan en Redis cifrado, asociadas a tu API key, con TTL de 2 horas.
+  </Step>
+  <Step title="Las consultas usan las cookies">
+    Cada request a `/v1/cl/factoring` y módulos similares usa las cookies almacenadas — nunca tu clave.
+  </Step>
+</Steps>
+
+### Qué se almacena (y qué no)
+
+| Dato | ¿Se almacena? | Dónde | TTL |
+|------|--------------|-------|-----|
+| Clave tributaria | **No** | — | — |
+| Cookies de sesión SII | Sí | Redis cifrado | 2 horas |
+| RUT asociado | Sí | Redis cifrado | 2 horas |
+
+### Conectar
+
+```bash
+curl -X POST https://api.tributoapi.com/v1/auth/cl/connect \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"rut": "76.354.771-K", "clave": "tu_clave_sii"}'
+```
+
+### Desconectar
+
+Puedes revocar la sesión en cualquier momento:
+
+```bash
+curl -X DELETE https://api.tributoapi.com/v1/auth/cl/disconnect \
+  -H "X-API-Key: YOUR_API_KEY"
+```
+
+### Sesión expirada
+
+Cuando la sesión expira (~2 horas), los endpoints autenticados devuelven `401` con:
+
+```json
+{
+  "detail": "Sesión SII expirada. Llama a POST /v1/auth/cl/connect para renovar."
+}
+```
+
+Simplemente vuelve a llamar a `/v1/auth/cl/connect`.
+
+---
+
+## Errores de autenticación
+
+| Código | Causa | Solución |
+|--------|-------|---------|
+| `401` | API key inválida o inactiva | Verifica tu key en tributoapi.com |
+| `401` | No hay sesión SII activa | Llama a `POST /v1/auth/cl/connect` |
+| `401` | Sesión SII expirada | Vuelve a llamar a `POST /v1/auth/cl/connect` |
+| `401` | Clave tributaria incorrecta | Verifica tu clave en el portal SII |
+| `503` | SII no disponible | Reintenta en unos minutos |

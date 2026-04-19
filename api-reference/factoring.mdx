@@ -1,0 +1,129 @@
+---
+title: "POST /v1/cl/factoring"
+description: Verifica si una factura electrónica chilena fue cedida a factoring.
+---
+
+## Descripción
+
+Consulta el **Registro de Transferencias y Cesiones (RTC)** del SII para determinar si una factura electrónica fue cedida a una empresa de factoring, y a quién.
+
+**Base legal:** Ley 19.983 — el Registro de Cesiones es público para proteger al deudor.
+**Requiere:** sesión SII activa (`POST /v1/auth/cl/connect`).
+**Cache:** 6 horas por folio.
+
+## Request
+
+```bash
+POST https://api.tributoapi.com/v1/cl/factoring
+```
+
+### Headers
+
+| Header | Valor |
+|--------|-------|
+| `X-API-Key` | Tu API key |
+| `Content-Type` | `application/json` |
+
+### Body
+
+| Campo | Tipo | Requerido | Default | Descripción |
+|-------|------|-----------|---------|-------------|
+| `folio` | integer | Sí | — | Número de folio de la factura |
+| `rut_emisor` | string | Sí | — | RUT del emisor. Acepta con o sin puntos |
+| `tipo_dte` | integer | No | `33` | Tipo de documento. `33` = factura electrónica afecta |
+
+<Tip>Los tipos de DTE más comunes son `33` (factura afecta) y `34` (factura no afecta). Si no estás seguro, usa `33`.</Tip>
+
+## Ejemplo
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST https://api.tributoapi.com/v1/cl/factoring \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"folio": 12345, "rut_emisor": "76.354.771-K", "tipo_dte": 33}'
+```
+
+```python Python
+import requests
+
+r = requests.post(
+    "https://api.tributoapi.com/v1/cl/factoring",
+    headers={"X-API-Key": "YOUR_API_KEY"},
+    json={"folio": 12345, "rut_emisor": "76.354.771-K", "tipo_dte": 33}
+)
+print(r.json())
+```
+
+```javascript Node.js
+const r = await fetch("https://api.tributoapi.com/v1/cl/factoring", {
+  method: "POST",
+  headers: {
+    "X-API-Key": "YOUR_API_KEY",
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({ folio: 12345, rut_emisor: "76.354.771-K", tipo_dte: 33 })
+});
+console.log(await r.json());
+```
+
+</CodeGroup>
+
+## Respuesta exitosa `200`
+
+<CodeGroup>
+
+```json Factura cedida
+{
+  "folio": 12345,
+  "rut_emisor": "76.354.771-K",
+  "tipo_dte": 33,
+  "cedida": true,
+  "cesionario": "Factoring Financiero S.A.",
+  "rut_cesionario": "76.111.222-3",
+  "fecha_cesion": "2026-03-15",
+  "monto": 1190000,
+  "source": "sii_rtc"
+}
+```
+
+```json Factura no cedida
+{
+  "folio": 12345,
+  "rut_emisor": "76.354.771-K",
+  "tipo_dte": 33,
+  "cedida": false,
+  "cesionario": null,
+  "rut_cesionario": null,
+  "fecha_cesion": null,
+  "monto": null,
+  "source": "sii_rtc"
+}
+```
+
+</CodeGroup>
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| `folio` | integer | Folio consultado |
+| `rut_emisor` | string | RUT del emisor normalizado |
+| `tipo_dte` | integer | Tipo de documento consultado |
+| `cedida` | boolean | `true` si la factura fue cedida a factoring |
+| `cesionario` | string \| null | Nombre de la empresa cesionaria |
+| `rut_cesionario` | string \| null | RUT de la empresa cesionaria |
+| `fecha_cesion` | string \| null | Fecha de la cesión en formato `YYYY-MM-DD` |
+| `monto` | integer \| null | Monto cedido en pesos chilenos |
+| `source` | string | Siempre `sii_rtc` |
+
+<Warning>Si `cedida: true`, el pago debe realizarse al `cesionario`, **no al emisor original**. Pagar al emisor después de una cesión puede generar obligación de pago doble.</Warning>
+
+## Errores
+
+| Código | Descripción |
+|--------|-------------|
+| `401` | No hay sesión SII activa — llamar a `POST /v1/auth/cl/connect` |
+| `401` | Sesión SII expirada — volver a llamar a `POST /v1/auth/cl/connect` |
+| `422` | RUT emisor con formato inválido |
+| `422` | Folio debe ser un número positivo |
+| `503` | SII RTC temporalmente no disponible |

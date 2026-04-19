@@ -1,0 +1,89 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "TributoAPI",
+  "colors": {
+    "primary": "#059669",
+    "light": "#10B981",
+    "dark": "#047857"
+  },
+  "favicon": "/favicon.svg",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Guides",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "index",
+              "quickstart",
+              "authentication"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/factoring-check"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Auth",
+            "pages": [
+              "api-reference/auth-connect",
+              "api-reference/auth-disconnect"
+            ]
+          },
+          {
+            "group": "Chile — SII",
+            "pages": [
+              "api-reference/rut-lookup",
+              "api-reference/factoring"
+            ]
+          }
+        ]
+      }
+    ],
+    "global": {
+      "anchors": [
+        {
+          "anchor": "tributoapi.com",
+          "href": "https://tributoapi.com",
+          "icon": "house"
+        },
+        {
+          "anchor": "Support",
+          "href": "mailto:team@tributoapi.com",
+          "icon": "envelope"
+        }
+      ]
+    }
+  },
+  "logo": {
+    "light": "/logo/light.svg",
+    "dark": "/logo/dark.svg"
+  },
+  "navbar": {
+    "links": [
+      {
+        "label": "Support",
+        "href": "mailto:team@tributoapi.com"
+      }
+    ],
+    "primary": {
+      "type": "button",
+      "label": "Get API Key",
+      "href": "https://tributoapi.com"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/rpalmam"
+    }
+  }
+}

@@ -1,0 +1,90 @@
+---
+title: "POST /v1/auth/cl/connect"
+description: Conecta una cuenta SII usando RUT + clave tributaria.
+---
+
+## Descripción
+
+Autentica una cuenta SII con RUT + clave tributaria. La clave se usa únicamente para obtener una sesión SII (~2h) y se descarta inmediatamente — nunca se persiste. Solo se almacenan las cookies de sesión derivadas, cifradas en Redis con TTL de 2 horas.
+
+Cuando la sesión expira, el cliente debe volver a llamar a este endpoint.
+
+## Request
+
+```bash
+POST https://api.tributoapi.com/v1/auth/cl/connect
+```
+
+### Headers
+
+| Header | Valor |
+|--------|-------|
+| `X-API-Key` | Tu API key |
+| `Content-Type` | `application/json` |
+
+### Body
+
+| Campo | Tipo | Requerido | Descripción |
+|-------|------|-----------|-------------|
+| `rut` | string | Sí | RUT del contribuyente. Acepta con o sin puntos: `76.354.771-K` o `76354771-K` |
+| `clave` | string | Sí | Clave tributaria SII. Nunca se persiste. |
+
+## Ejemplo
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST https://api.tributoapi.com/v1/auth/cl/connect \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"rut": "76.354.771-K", "clave": "tu_clave_sii"}'
+```
+
+```python Python
+import requests
+
+r = requests.post(
+    "https://api.tributoapi.com/v1/auth/cl/connect",
+    headers={"X-API-Key": "YOUR_API_KEY"},
+    json={"rut": "76.354.771-K", "clave": "tu_clave_sii"}
+)
+print(r.json())
+```
+
+```javascript Node.js
+const r = await fetch("https://api.tributoapi.com/v1/auth/cl/connect", {
+  method: "POST",
+  headers: {
+    "X-API-Key": "YOUR_API_KEY",
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({ rut: "76.354.771-K", clave: "tu_clave_sii" })
+});
+console.log(await r.json());
+```
+
+</CodeGroup>
+
+## Respuesta exitosa `200`
+
+```json
+{
+  "connected": true,
+  "rut": "76.354.771-K",
+  "expires_at": "2026-04-18T14:00:00+00:00"
+}
+```
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| `connected` | boolean | `true` si la sesión fue establecida |
+| `rut` | string | RUT normalizado confirmado |
+| `expires_at` | string | ISO 8601 — cuándo expira la sesión SII |
+
+## Errores
+
+| Código | Descripción |
+|--------|-------------|
+| `401` | Clave tributaria incorrecta o RUT no registrado en el SII |
+| `422` | RUT con formato inválido |
+| `503` | SII temporalmente no disponible |

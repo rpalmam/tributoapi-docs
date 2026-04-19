@@ -1,0 +1,104 @@
+---
+title: "GET /v1/cl/rut/{rut}"
+description: Datos públicos de un contribuyente chileno desde el SII.
+---
+
+## Descripción
+
+Retorna razón social, actividades económicas, fecha de inicio de actividades y situación tributaria de una persona jurídica chilena.
+
+**Fuente:** SII — consulta pública, no requiere credenciales del contribuyente.
+**Plan:** Free — incluido en todos los tiers.
+**Cache:** 24 horas.
+
+## Request
+
+```bash
+GET https://api.tributoapi.com/v1/cl/rut/{rut}
+```
+
+### Headers
+
+| Header | Valor |
+|--------|-------|
+| `X-API-Key` | Tu API key |
+
+### Path parameters
+
+| Parámetro | Tipo | Descripción |
+|-----------|------|-------------|
+| `rut` | string | RUT chileno. Acepta con o sin puntos: `76.354.771-K` o `76354771-K` |
+
+<Note>Solo se permiten consultas de **personas jurídicas** (RUT ≥ 50.000.000). Las personas naturales no están disponibles por privacidad.</Note>
+
+## Ejemplo
+
+<CodeGroup>
+
+```bash cURL
+curl https://api.tributoapi.com/v1/cl/rut/76.354.771-K \
+  -H "X-API-Key: YOUR_API_KEY"
+```
+
+```python Python
+import requests
+
+r = requests.get(
+    "https://api.tributoapi.com/v1/cl/rut/76.354.771-K",
+    headers={"X-API-Key": "YOUR_API_KEY"}
+)
+print(r.json())
+```
+
+```javascript Node.js
+const r = await fetch("https://api.tributoapi.com/v1/cl/rut/76.354.771-K", {
+  headers: { "X-API-Key": "YOUR_API_KEY" }
+});
+console.log(await r.json());
+```
+
+</CodeGroup>
+
+## Respuesta exitosa `200`
+
+```json
+{
+  "rut": "76.354.771-K",
+  "razon_social": "Empresa Ejemplo SpA",
+  "actividades": [
+    {
+      "codigo": "6201",
+      "descripcion": "Actividades de programación informática",
+      "afecta_iva": true,
+      "categoria": "Primera Categoría"
+    }
+  ],
+  "inicio_actividades": "2018-05-10",
+  "situacion_tributaria": "VIGENTE",
+  "domicilio": "Av. Providencia 1234, Santiago",
+  "source": "sii_stc"
+}
+```
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| `rut` | string | RUT normalizado con puntos y guión |
+| `razon_social` | string | Nombre o razón social registrada en el SII |
+| `actividades` | array | Lista de actividades económicas registradas |
+| `actividades[].codigo` | string | Código de actividad económica |
+| `actividades[].descripcion` | string | Descripción de la actividad |
+| `actividades[].afecta_iva` | boolean | Si la actividad está afecta a IVA |
+| `actividades[].categoria` | string | Categoría tributaria (ej: Primera Categoría) |
+| `inicio_actividades` | string \| null | Fecha de inicio de actividades en formato `YYYY-MM-DD` |
+| `situacion_tributaria` | string \| null | Estado en el SII (ej: `VIGENTE`, `NO VIGENTE`) |
+| `domicilio` | string \| null | Domicilio fiscal registrado |
+| `source` | string | Siempre `sii_stc` |
+
+## Errores
+
+| Código | Descripción |
+|--------|-------------|
+| `404` | RUT no encontrado en el SII |
+| `422` | RUT con formato inválido |
+| `422` | RUT de persona natural (< 50.000.000) |
+| `503` | SII temporalmente no disponible |

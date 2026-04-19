@@ -1,0 +1,46 @@
+---
+title: TributoAPI
+description: Una API para automatizar consultas fiscales en América Latina.
+---
+
+## Qué es TributoAPI
+
+TributoAPI es una capa de abstracción sobre las autoridades tributarias de LatAm — SII (Chile), SAT (México), DIAN (Colombia) y otras. En lugar de lidiar con portales gubernamentales, SOAP, captchas y autenticaciones distintas por país, usas una sola API key y un contrato de integración consistente.
+
+## Por qué existe
+
+Cada país de LatAm tiene su propia autoridad tributaria con su propia API, su propio modelo de autenticación y su propia documentación. Una empresa con operaciones en Chile y México necesita integrar dos sistemas completamente distintos. TributoAPI resuelve eso.
+
+## Diferenciadores
+
+<CardGroup cols={3}>
+  <Card title="Zero-knowledge" icon="shield-halved">
+    Nunca almacenamos tu clave tributaria. Solo guardamos el token de sesión derivado, con TTL de 2 horas.
+  </Card>
+  <Card title="Multi-país" icon="globe">
+    Un solo contrato de integración para Chile, México, Colombia y más. Mismo formato de respuesta en todos los países.
+  </Card>
+  <Card title="Developer-first" icon="code">
+    REST + JSON + documentación clara. Sin SOAP, sin proxies opacos, sin overhead.
+  </Card>
+</CardGroup>
+
+## Módulos disponibles
+
+### Chile — SII
+
+| Módulo | Endpoint | Auth requerida | Plan |
+|--------|----------|----------------|------|
+| RUT Lookup | `GET /v1/cl/rut/{rut}` | No | Free |
+| Factoring Check | `POST /v1/cl/factoring` | Sí (clave SII) | Starter+ |
+
+## Empezar
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="bolt" href="/quickstart">
+    Haz tu primera consulta en menos de 5 minutos.
+  </Card>
+  <Card title="Autenticación" icon="key" href="/authentication">
+    Cómo funciona la API key y la sesión SII zero-knowledge.
+  </Card>
+</CardGroup>

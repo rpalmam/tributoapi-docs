@@ -1,0 +1,53 @@
+---
+title: "DELETE /v1/auth/cl/disconnect"
+description: Revoca la sesión SII activa.
+---
+
+## Descripción
+
+Elimina las cookies de sesión SII almacenadas para tu API key. Las cookies se eliminan de inmediato — la sesión queda inactiva antes de que expire naturalmente.
+
+## Request
+
+```bash
+DELETE https://api.tributoapi.com/v1/auth/cl/disconnect
+```
+
+### Headers
+
+| Header | Valor |
+|--------|-------|
+| `X-API-Key` | Tu API key |
+
+## Ejemplo
+
+<CodeGroup>
+
+```bash cURL
+curl -X DELETE https://api.tributoapi.com/v1/auth/cl/disconnect \
+  -H "X-API-Key: YOUR_API_KEY"
+```
+
+```python Python
+import requests
+
+requests.delete(
+    "https://api.tributoapi.com/v1/auth/cl/disconnect",
+    headers={"X-API-Key": "YOUR_API_KEY"}
+)
+```
+
+```javascript Node.js
+await fetch("https://api.tributoapi.com/v1/auth/cl/disconnect", {
+  method: "DELETE",
+  headers: { "X-API-Key": "YOUR_API_KEY" }
+});
+```
+
+</CodeGroup>
+
+## Respuesta exitosa `204`
+
+Sin body. La sesión fue revocada.
+
+<Info>Si no hay sesión activa, el endpoint igualmente devuelve `204` — la operación es idempotente.</Info>
